@@ -177,15 +177,6 @@ async fn create_block<T: Context>(ctx: &T) -> Block {
         if proof.is_none() || confirmed_frauds.contains_key(&benchmark.id) {
             continue;
         }
-        // TODO check player state
-        let _player = ctx
-            .get_players(
-                PlayersFilter::Id(benchmark.settings.player_id.clone()),
-                None,
-            )
-            .await
-            .unwrap_or_else(|e| panic!("get_players error: {:?}", e))
-            .pop();
         let proof_state = proof.unwrap().state();
         let submission_delay = proof_state.submission_delay();
         let block_confirmed = proof_state.block_confirmed();
