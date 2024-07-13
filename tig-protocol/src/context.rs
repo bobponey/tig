@@ -1,5 +1,8 @@
+use std::collections::HashMap;
+
 pub use anyhow::{Error as ContextError, Result as ContextResult};
 use tig_structs::{config::*, core::*};
+use tokio::sync::{RwLockReadGuard, RwLockWriteGuard};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum SubmissionType {
@@ -10,7 +13,6 @@ pub enum SubmissionType {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AlgorithmsFilter {
-    Id(String),
     Name(String),
     TxHash(String),
     Mempool,
@@ -25,83 +27,81 @@ pub enum BenchmarksFilter {
 }
 #[derive(Debug, Clone, PartialEq)]
 pub enum BlockFilter {
-    Latest,
     Height(u32),
-    Id(String),
+    Latest,
     Round(u32),
 }
 #[derive(Debug, Clone, PartialEq)]
 pub enum ChallengesFilter {
-    Id(String),
     Name(String),
     Mempool,
     Confirmed,
 }
 #[derive(Debug, Clone, PartialEq)]
 pub enum FraudsFilter {
-    BenchmarkId(String),
     Mempool { from_block_started: u32 },
     Confirmed { from_block_started: u32 },
 }
 #[derive(Debug, Clone, PartialEq)]
 pub enum PlayersFilter {
-    Id(String),
     Name(String),
-    Benchmarkers,
-    Innovators,
+    Active { block_id: String },
 }
 #[derive(Debug, Clone, PartialEq)]
 pub enum ProofsFilter {
-    BenchmarkId(String),
     Mempool { from_block_started: u32 },
     Confirmed { from_block_started: u32 },
 }
 #[derive(Debug, Clone, PartialEq)]
 pub enum WasmsFilter {
-    AlgorithmId(String),
     Mempool,
     Confirmed,
 }
 #[allow(async_fn_in_trait)]
 pub trait Context {
-    async fn get_algorithms(
+    async fn get_config(&self) -> ProtocolConfig;
+    async fn get_algorithm_ids(&self, filter: AlgorithmsFilter) -> Vec<String>;
+    async fn read_algorithms(&self) -> RwLockReadGuard<HashMap<String, Algorithm>>;
+    async fn read_algorithms_block_data(
         &self,
-        filter: AlgorithmsFilter,
-        block_data: Option<BlockFilter>,
-        include_data: bool,
-    ) -> ContextResult<Vec<Algorithm>>;
-    async fn get_benchmarks(
+    ) -> RwLockReadGuard<HashMap<String, HashMap<String, AlgorithmBlockData>>>;
+    async fn write_algorithms(&self) -> RwLockWriteGuard<HashMap<String, Algorithm>>;
+    async fn write_algorithms_block_data(
         &self,
-        filter: BenchmarksFilter,
-        include_data: bool,
-    ) -> ContextResult<Vec<Benchmark>>;
-    async fn get_block(
+    ) -> RwLockWriteGuard<HashMap<String, HashMap<String, AlgorithmBlockData>>>;
+    async fn get_benchmark_ids(&self, filter: BenchmarksFilter) -> Vec<String>;
+    async fn read_benchmarks(&self) -> RwLockReadGuard<HashMap<String, Benchmark>>;
+    async fn write_benchmarks(&self) -> RwLockWriteGuard<HashMap<String, Benchmark>>;
+    async fn get_block_id(&self, filter: BlockFilter) -> Option<String>;
+    async fn read_blocks(&self) -> RwLockReadGuard<HashMap<String, Block>>;
+    async fn get_challenge_ids(&self, filter: ChallengesFilter) -> Vec<String>;
+    async fn read_challenges(&self) -> RwLockReadGuard<HashMap<String, Challenge>>;
+    async fn read_challenges_block_data(
         &self,
-        filter: BlockFilter,
-        include_data: bool,
-    ) -> ContextResult<Option<Block>>;
-    async fn get_challenges(
+    ) -> RwLockReadGuard<HashMap<String, HashMap<String, ChallengeBlockData>>>;
+    async fn write_challenges(&self) -> RwLockWriteGuard<HashMap<String, Challenge>>;
+    async fn write_challenges_block_data(
         &self,
-        filter: ChallengesFilter,
-        block_data: Option<BlockFilter>,
-    ) -> ContextResult<Vec<Challenge>>;
-    async fn get_config(&self) -> ContextResult<ProtocolConfig>;
-    async fn get_frauds(
+    ) -> RwLockWriteGuard<HashMap<String, HashMap<String, ChallengeBlockData>>>;
+    async fn get_fraud_ids(&self, filter: FraudsFilter) -> Vec<String>;
+    async fn read_frauds(&self) -> RwLockReadGuard<HashMap<String, Fraud>>;
+    async fn write_frauds(&self) -> RwLockWriteGuard<HashMap<String, Fraud>>;
+    async fn get_player_ids(&self, filter: PlayersFilter) -> Vec<String>;
+    async fn read_players(&self) -> RwLockReadGuard<HashMap<String, Player>>;
+    async fn read_players_block_data(
         &self,
-        filter: FraudsFilter,
-        include_data: bool,
-    ) -> ContextResult<Vec<Fraud>>;
-    async fn get_players(
+    ) -> RwLockReadGuard<HashMap<String, HashMap<String, PlayerBlockData>>>;
+    async fn write_players(&self) -> RwLockWriteGuard<HashMap<String, Player>>;
+    async fn write_players_block_data(
         &self,
-        filter: PlayersFilter,
-        block_data: Option<BlockFilter>,
-    ) -> ContextResult<Vec<Player>>;
-    async fn get_proofs(
-        &self,
-        filter: ProofsFilter,
-        include_data: bool,
-    ) -> ContextResult<Vec<Proof>>;
-    async fn get_wasms(&self, filter: WasmsFilter, include_data: bool) -> ContextResult<Vec<Wasm>>;
+    ) -> RwLockWriteGuard<HashMap<String, HashMap<String, PlayerBlockData>>>;
+    async fn get_proof_ids(&self, filter: ProofsFilter) -> Vec<String>;
+    async fn read_proofs(&self) -> RwLockReadGuard<HashMap<String, Proof>>;
+    async fn write_proofs(&self) -> RwLockWriteGuard<HashMap<String, Proof>>;
+    async fn get_wasm_ids(&self, filter: WasmsFilter) -> Vec<String>;
+    async fn read_wasms(&self) -> RwLockReadGuard<HashMap<String, Wasm>>;
+    async fn write_wasms(&self) -> RwLockWriteGuard<HashMap<String, Wasm>>;
+
     async fn verify_solution(
         &self,
         settings: &BenchmarkSettings,
@@ -114,14 +114,14 @@ pub trait Context {
         nonce: u32,
         wasm_vm_config: &WasmVMConfig,
     ) -> ContextResult<anyhow::Result<SolutionData>>;
-    async fn get_transaction(&self, tx_hash: &String) -> ContextResult<Transaction>;
-    async fn get_multisig_owners(&self, address: &String) -> ContextResult<Vec<String>>;
-    async fn get_latest_eth_block_num(&self) -> ContextResult<String>;
+    async fn get_transaction(&self, tx_hash: &String) -> Transaction;
+    async fn get_multisig_owners(&self, address: &String) -> Vec<String>;
+    async fn get_latest_eth_block_num(&self) -> String;
     async fn get_player_deposit(
         &self,
         eth_block_num: &String,
         player_id: &String,
-    ) -> ContextResult<Option<PreciseNumber>>;
+    ) -> Option<PreciseNumber>;
 
     // Mempool
     async fn add_block(
@@ -129,84 +129,22 @@ pub trait Context {
         details: &BlockDetails,
         data: &BlockData,
         config: &ProtocolConfig,
-    ) -> ContextResult<String>;
-    async fn add_challenge_to_mempool(&self, details: &ChallengeDetails) -> ContextResult<String>;
-    async fn add_algorithm_to_mempool(
-        &self,
-        details: &AlgorithmDetails,
-        code: &String,
-    ) -> ContextResult<String>;
+    ) -> String;
+    async fn add_challenge_to_mempool(&self, details: &ChallengeDetails) -> String;
+    async fn add_algorithm_to_mempool(&self, details: &AlgorithmDetails, code: &String) -> String;
     async fn add_benchmark_to_mempool(
         &self,
         settings: &BenchmarkSettings,
         details: &BenchmarkDetails,
         solutions_metadata: &Vec<SolutionMetaData>,
         solution_data: &SolutionData,
-    ) -> ContextResult<String>;
-    async fn add_proof_to_mempool(
-        &self,
-        benchmark_id: &String,
-        solutions_data: &Vec<SolutionData>,
-    ) -> ContextResult<()>;
-    async fn add_fraud_to_mempool(
-        &self,
-        benchmark_id: &String,
-        allegation: &String,
-    ) -> ContextResult<()>;
+    ) -> String;
+    async fn add_proof_to_mempool(&self, benchmark_id: &String, solutions_data: &Vec<SolutionData>);
+    async fn add_fraud_to_mempool(&self, benchmark_id: &String, allegation: &String);
     async fn add_wasm_to_mempool(
         &self,
         algorithm_id: &String,
         details: &WasmDetails,
         wasm_blob: &Option<Vec<u8>>,
-    ) -> ContextResult<()>;
-
-    // Updates
-    async fn update_challenge_state(
-        &self,
-        challenge_id: &String,
-        state: &ChallengeState,
-    ) -> ContextResult<()>;
-    async fn update_challenge_block_data(
-        &self,
-        challenge_id: &String,
-        block_id: &String,
-        block_data: &ChallengeBlockData,
-    ) -> ContextResult<()>;
-    async fn update_algorithm_state(
-        &self,
-        algorithm_id: &String,
-        state: &AlgorithmState,
-    ) -> ContextResult<()>;
-    async fn update_algorithm_block_data(
-        &self,
-        algorithm_id: &String,
-        block_id: &String,
-        block_data: &AlgorithmBlockData,
-    ) -> ContextResult<()>;
-    async fn update_benchmark_state(
-        &self,
-        benchmark_id: &String,
-        state: &BenchmarkState,
-    ) -> ContextResult<()>;
-    async fn update_proof_state(
-        &self,
-        benchmark_id: &String,
-        state: &ProofState,
-    ) -> ContextResult<()>;
-    async fn update_fraud_state(
-        &self,
-        benchmark_id: &String,
-        state: &FraudState,
-    ) -> ContextResult<()>;
-    async fn update_player_block_data(
-        &self,
-        player_id: &String,
-        block_id: &String,
-        block_data: &PlayerBlockData,
-    ) -> ContextResult<()>;
-    async fn update_wasm_state(
-        &self,
-        algorithm_id: &String,
-        state: &WasmState,
-    ) -> ContextResult<()>;
+    );
 }

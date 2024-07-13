@@ -13,10 +13,7 @@ pub(crate) async fn execute<T: Context>(
 ) -> ProtocolResult<String> {
     verify_challenge_exists(ctx, details).await?;
     verify_submission_fee(ctx, player, details).await?;
-    let algorithm_id = ctx
-        .add_algorithm_to_mempool(details, code)
-        .await
-        .unwrap_or_else(|e| panic!("add_algorithm_to_mempool error: {:?}", e));
+    let algorithm_id = ctx.add_algorithm_to_mempool(details, code).await;
     Ok(algorithm_id)
 }
 
@@ -26,10 +23,10 @@ async fn verify_challenge_exists<T: Context>(
     details: &AlgorithmDetails,
 ) -> ProtocolResult<()> {
     if ctx
-        .get_challenges(ChallengesFilter::Id(details.challenge_id.clone()), None)
+        .read_challenges()
         .await
-        .unwrap_or_else(|e| panic!("get_challenges error: {:?}", e))
-        .is_empty()
+        .get(&details.challenge_id)
+        .is_none()
     {
         return Err(ProtocolError::InvalidChallenge {
             challenge_id: details.challenge_id.clone(),
@@ -44,20 +41,22 @@ async fn verify_submission_fee<T: Context>(
     player: &Player,
     details: &AlgorithmDetails,
 ) -> ProtocolResult<()> {
-    let block = ctx
-        .get_block(BlockFilter::Latest, false)
-        .await
-        .unwrap_or_else(|e| panic!("get_block error: {:?}", e))
-        .expect("No latest block found");
+    let config = {
+        let latest_block_id = ctx
+            .get_block_id(BlockFilter::Latest)
+            .await
+            .expect("No latest block id");
+        let read_blocks = ctx.read_blocks().await;
+        read_blocks
+            .get(&latest_block_id)
+            .expect("No latest block")
+            .config()
+            .clone()
+    };
 
     if ctx
-        .get_algorithms(
-            AlgorithmsFilter::TxHash(details.tx_hash.clone()),
-            None,
-            false,
-        )
+        .get_algorithm_ids(AlgorithmsFilter::TxHash(details.tx_hash.clone()))
         .await
-        .unwrap_or_else(|e| panic!("get_algorithms error: {:?}", e))
         .first()
         .is_some()
     {
@@ -68,18 +67,11 @@ async fn verify_submission_fee<T: Context>(
     let mut valid_senders = HashSet::<String>::new();
     valid_senders.insert(player.id.clone());
     if player.details.is_multisig {
-        let multisig_owners = ctx
-            .get_multisig_owners(&player.id)
-            .await
-            .unwrap_or_else(|e| panic!("get_multisig_owners error: {:?}", e));
+        let multisig_owners = ctx.get_multisig_owners(&player.id).await;
         valid_senders.extend(multisig_owners.into_iter());
     }
 
-    let transaction = ctx.get_transaction(&details.tx_hash).await.map_err(|_| {
-        ProtocolError::InvalidTransaction {
-            tx_hash: details.tx_hash.clone(),
-        }
-    })?;
+    let transaction = ctx.get_transaction(&details.tx_hash).await;
     if !valid_senders.contains(&transaction.sender) {
         return Err(ProtocolError::InvalidSubmissionFeeSender {
             tx_hash: details.tx_hash.clone(),
@@ -87,7 +79,7 @@ async fn verify_submission_fee<T: Context>(
             actual_sender: transaction.sender.clone(),
         });
     }
-    let burn_address = block.config().erc20.burn_address.clone();
+    let burn_address = config.erc20.burn_address.clone();
     if transaction.receiver != burn_address {
         return Err(ProtocolError::InvalidSubmissionFeeReceiver {
             tx_hash: details.tx_hash.clone(),
@@ -96,7 +88,7 @@ async fn verify_submission_fee<T: Context>(
         });
     }
 
-    let expected_amount = block.config().algorithm_submissions.submission_fee;
+    let expected_amount = config.algorithm_submissions.submission_fee;
     if transaction.amount != expected_amount {
         return Err(ProtocolError::InvalidSubmissionFeeAmount {
             tx_hash: details.tx_hash.clone(),

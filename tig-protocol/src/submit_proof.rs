@@ -12,45 +12,19 @@ pub(crate) async fn execute<T: Context>(
 ) -> ProtocolResult<Result<(), String>> {
     verify_no_fraud(ctx, benchmark_id).await?;
     verify_proof_not_already_submitted(ctx, benchmark_id).await?;
-    let benchmark = get_benchmark_by_id(ctx, benchmark_id).await?;
-    verify_benchmark_ownership(player, &benchmark)?;
-    verify_sampled_nonces(&benchmark, &solutions_data)?;
-    ctx.add_proof_to_mempool(benchmark_id, solutions_data)
-        .await
-        .unwrap_or_else(|e| panic!("add_proof_to_mempool error: {:?}", e));
-    if let Err(e) = verify_solutions_are_valid(ctx, &benchmark, &solutions_data).await {
-        ctx.add_fraud_to_mempool(benchmark_id, &e.to_string())
-            .await
-            .unwrap_or_else(|e| panic!("add_fraud_to_mempool error: {:?}", e));
+    verify_benchmark(ctx, player, benchmark_id).await?;
+    verify_sampled_nonces(ctx, benchmark_id, solutions_data).await?;
+    ctx.add_proof_to_mempool(benchmark_id, solutions_data).await;
+    if let Err(e) = verify_solutions_are_valid(ctx, benchmark_id, solutions_data).await {
+        ctx.add_fraud_to_mempool(benchmark_id, &e.to_string()).await;
         return Ok(Err(e.to_string()));
     }
     Ok(Ok(()))
 }
 
 #[time]
-async fn get_benchmark_by_id<T: Context>(
-    ctx: &T,
-    benchmark_id: &String,
-) -> ProtocolResult<Benchmark> {
-    ctx.get_benchmarks(BenchmarksFilter::Id(benchmark_id.clone()), true)
-        .await
-        .unwrap_or_else(|e| panic!("add_benchmark_to_mempool error: {:?}", e))
-        .first()
-        .map(|x| x.to_owned())
-        .ok_or_else(|| ProtocolError::InvalidBenchmark {
-            benchmark_id: benchmark_id.to_string(),
-        })
-}
-
-#[time]
 async fn verify_no_fraud<T: Context>(ctx: &T, benchmark_id: &String) -> ProtocolResult<()> {
-    if ctx
-        .get_frauds(FraudsFilter::BenchmarkId(benchmark_id.clone()), false)
-        .await
-        .unwrap_or_else(|e| panic!("get_frauds error: {:?}", e))
-        .first()
-        .is_some()
-    {
+    if ctx.read_frauds().await.get(benchmark_id).is_some() {
         return Err(ProtocolError::FlaggedAsFraud {
             benchmark_id: benchmark_id.to_string(),
         });
@@ -63,13 +37,7 @@ async fn verify_proof_not_already_submitted<T: Context>(
     ctx: &T,
     benchmark_id: &String,
 ) -> ProtocolResult<()> {
-    if ctx
-        .get_proofs(ProofsFilter::BenchmarkId(benchmark_id.clone()), false)
-        .await
-        .unwrap_or_else(|e| panic!("get_proofs error: {:?}", e))
-        .first()
-        .is_some()
-    {
+    if ctx.read_proofs().await.get(benchmark_id).is_some() {
         return Err(ProtocolError::DuplicateProof {
             benchmark_id: benchmark_id.to_string(),
         });
@@ -78,23 +46,45 @@ async fn verify_proof_not_already_submitted<T: Context>(
 }
 
 #[time]
-fn verify_benchmark_ownership(player: &Player, benchmark: &Benchmark) -> ProtocolResult<()> {
-    let expected_player_id = benchmark.settings.player_id.clone();
-    if player.id != expected_player_id {
-        return Err(ProtocolError::InvalidSubmittingPlayer {
-            actual_player_id: player.id.to_string(),
-            expected_player_id,
-        });
+async fn verify_benchmark<T: Context>(
+    ctx: &T,
+    player: &Player,
+    benchmark_id: &String,
+) -> ProtocolResult<()> {
+    match ctx.read_benchmarks().await.get(benchmark_id) {
+        Some(benchmark) => {
+            let expected_player_id = benchmark.settings.player_id.clone();
+            if player.id != expected_player_id {
+                return Err(ProtocolError::InvalidSubmittingPlayer {
+                    actual_player_id: player.id.to_string(),
+                    expected_player_id,
+                });
+            } else {
+                Ok(())
+            }
+        }
+        None => Err(ProtocolError::InvalidBenchmark {
+            benchmark_id: benchmark_id.to_string(),
+        }),
     }
-    Ok(())
 }
 
 #[time]
-fn verify_sampled_nonces(
-    benchmark: &Benchmark,
+async fn verify_sampled_nonces<T: Context>(
+    ctx: &T,
+    benchmark_id: &String,
     solutions_data: &Vec<SolutionData>,
 ) -> ProtocolResult<()> {
-    let sampled_nonces: HashSet<u32> = benchmark.state().sampled_nonces().iter().cloned().collect();
+    let sampled_nonces: HashSet<u32> = ctx
+        .read_benchmarks()
+        .await
+        .get(benchmark_id)
+        .unwrap()
+        .state()
+        .sampled_nonces()
+        .iter()
+        .cloned()
+        .collect();
     let proof_nonces: HashSet<u32> = solutions_data.iter().map(|d| d.nonce).collect();
 
     if sampled_nonces != proof_nonces {
@@ -109,9 +99,11 @@ fn verify_sampled_nonces(
 #[time]
 async fn verify_solutions_are_valid<T: Context>(
     ctx: &T,
-    benchmark: &Benchmark,
+    benchmark_id: &String,
     solutions_data: &Vec<SolutionData>,
 ) -> ProtocolResult<()> {
+    let read_benchmarks = ctx.read_benchmarks().await;
+    let benchmark = read_benchmarks.get(benchmark_id).unwrap();
     let solutions_map: HashMap<u32, u32> = benchmark
         .solutions_meta_data()
         .iter()
