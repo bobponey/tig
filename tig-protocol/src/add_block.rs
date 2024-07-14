@@ -33,10 +33,18 @@ async fn create_block<T: Context>(ctx: &T) -> Block {
         .get_block_id(BlockFilter::Latest)
         .await
         .expect("No latest block id");
-    let read_blocks = ctx.read_blocks().await;
-    let latest_block = read_blocks
-        .get(&latest_block_id)
-        .expect("No latest block found");
+    let latest_block = {
+        let read_blocks = ctx.read_blocks().await;
+        read_blocks
+            .get(&latest_block_id)
+            .map(|b| Block {
+                id: b.id.clone(),
+                config: b.config.clone(),
+                details: b.details.clone(),
+                data: None,
+            })
+            .unwrap()
+    };
     let config = ctx.get_config().await;
     let height = latest_block.details.height + 1;
     let details = BlockDetails {
