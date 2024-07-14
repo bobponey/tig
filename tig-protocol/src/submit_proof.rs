@@ -75,11 +75,7 @@ async fn verify_sampled_nonces<T: Context>(
     benchmark_id: &String,
     solutions_data: &Vec<SolutionData>,
 ) -> ProtocolResult<()> {
-    let sampled_nonces: HashSet<u32> = ctx
-        .read_benchmarks()
-        .await
-        .get(benchmark_id)
-        .unwrap()
+    let sampled_nonces: HashSet<u32> = ctx.read_benchmarks().await[benchmark_id]
         .state()
         .sampled_nonces()
         .iter()
@@ -103,7 +99,7 @@ async fn verify_solutions_are_valid<T: Context>(
     solutions_data: &Vec<SolutionData>,
 ) -> ProtocolResult<()> {
     let read_benchmarks = ctx.read_benchmarks().await;
-    let benchmark = read_benchmarks.get(benchmark_id).unwrap();
+    let benchmark = &read_benchmarks[benchmark_id];
     let solutions_map: HashMap<u32, u32> = benchmark
         .solutions_meta_data()
         .iter()

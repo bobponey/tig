@@ -20,7 +20,13 @@ pub(crate) async fn execute<T: Context>(
     verify_sufficient_solutions(ctx, &settings.block_id, solutions_meta_data).await?;
     verify_benchmark_settings_are_unique(ctx, settings).await?;
     verify_nonces_are_unique(solutions_meta_data)?;
-    verify_solutions_signatures(ctx, &settings.challenge_id, solutions_meta_data).await?;
+    verify_solutions_signatures(
+        ctx,
+        &settings.block_id,
+        &settings.challenge_id,
+        solutions_meta_data,
+    )
+    .await?;
     verify_benchmark_difficulty(
         ctx,
         &settings.difficulty,
@@ -32,13 +38,7 @@ pub(crate) async fn execute<T: Context>(
         .add_benchmark_to_mempool(
             &settings,
             &BenchmarkDetails {
-                block_started: ctx
-                    .read_blocks()
-                    .await
-                    .get(&settings.block_id)
-                    .unwrap()
-                    .details
-                    .height,
+                block_started: ctx.read_blocks().await[&settings.block_id].details.height,
                 num_solutions: solutions_meta_data.len() as u32,
             },
             solutions_meta_data,
@@ -88,10 +88,8 @@ async fn verify_sufficient_lifespan<T: Context>(ctx: &T, block_id: &String) -> P
         .await
         .expect("Expecting latest block to exist");
     let read_blocks = ctx.read_blocks().await;
-    let latest_block = read_blocks
-        .get(&latest_block_id)
-        .expect("Expecting latest block to exist");
-    let block = read_blocks.get(block_id).unwrap();
+    let latest_block = &read_blocks[&latest_block_id];
+    let block = &read_blocks[block_id];
     let config = block.config();
     let submission_delay = latest_block.details.height - block.details.height + 1;
     if submission_delay * (config.benchmark_submissions.submission_delay_multiplier + 1)
@@ -113,11 +111,7 @@ async fn verify_challenge<T: Context>(
             challenge_id: challenge_id.clone(),
         });
     }
-    if !ctx
-        .read_blocks()
-        .await
-        .get(block_id)
-        .unwrap()
+    if !ctx.read_blocks().await[block_id]
         .data()
         .active_challenge_ids
         .contains(challenge_id)
@@ -140,11 +134,7 @@ async fn verify_algorithm<T: Context>(
             algorithm_id: algorithm_id.clone(),
         });
     }
-    if !ctx
-        .read_blocks()
-        .await
-        .get(block_id)
-        .unwrap()
+    if !ctx.read_blocks().await[block_id]
         .data()
         .active_algorithm_ids
         .contains(algorithm_id)
@@ -162,11 +152,7 @@ async fn verify_sufficient_solutions<T: Context>(
     block_id: &String,
     solutions_meta_data: &Vec<SolutionMetaData>,
 ) -> ProtocolResult<()> {
-    let min_num_solutions = ctx
-        .read_blocks()
-        .await
-        .get(block_id)
-        .unwrap()
+    let min_num_solutions = ctx.read_blocks().await[block_id]
         .config()
         .benchmark_submissions
         .min_num_solutions as usize;
@@ -218,15 +204,12 @@ fn verify_nonces_are_unique(solutions_meta_data: &Vec<SolutionMetaData>) -> Prot
 #[time]
 async fn verify_solutions_signatures<T: Context>(
     ctx: &T,
+    block_id: &String,
     challenge_id: &String,
     solutions_meta_data: &Vec<SolutionMetaData>,
 ) -> ProtocolResult<()> {
-    let solution_signature_threshold = *ctx
-        .read_challenges()
-        .await
-        .get(challenge_id)
-        .unwrap()
-        .block_data()
+    let solution_signature_threshold = *ctx.read_challenges_block_data().await[block_id]
+        [challenge_id]
         .solution_signature_threshold();
     if let Some(s) = solutions_meta_data
         .iter()
@@ -249,11 +232,7 @@ async fn verify_benchmark_difficulty<T: Context>(
     challenge_id: &String,
     block_id: &String,
 ) -> ProtocolResult<()> {
-    let difficulty_parameters = &ctx
-        .read_blocks()
-        .await
-        .get(block_id)
-        .unwrap()
+    let difficulty_parameters = &ctx.read_blocks().await[block_id]
         .config()
         .difficulty
         .parameters[challenge_id]
@@ -271,8 +250,8 @@ async fn verify_benchmark_difficulty<T: Context>(
         });
     }
 
-    let read_challenges = ctx.read_challenges().await;
-    let challenge_data = read_challenges.get(challenge_id).unwrap().block_data();
+    let read_block_data = ctx.read_challenges_block_data().await;
+    let challenge_data = &read_block_data[block_id][challenge_id];
     let (lower_frontier, upper_frontier) = if *challenge_data.scaling_factor() > 1f64 {
         (
             challenge_data.base_frontier(),

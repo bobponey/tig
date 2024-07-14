@@ -47,11 +47,7 @@ async fn verify_submission_fee<T: Context>(
             .await
             .expect("No latest block id");
         let read_blocks = ctx.read_blocks().await;
-        read_blocks
-            .get(&latest_block_id)
-            .expect("No latest block")
-            .config()
-            .clone()
+        read_blocks[&latest_block_id].config().clone()
     };
 
     if ctx

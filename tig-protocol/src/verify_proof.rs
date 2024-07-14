@@ -20,19 +20,16 @@ async fn verify_solutions_with_algorithm<T: Context>(
     benchmark_id: &String,
 ) -> ProtocolResult<()> {
     let read_benchmarks = ctx.read_benchmarks().await;
-    let benchmark = read_benchmarks.get(benchmark_id).unwrap();
+    let benchmark = &read_benchmarks[benchmark_id];
     let read_proofs = ctx.read_proofs().await;
-    let proof = read_proofs.get(benchmark_id).unwrap();
+    let proof = &read_proofs[benchmark_id];
     let settings = &benchmark.settings;
-    let wasm_vm_config = ctx
-        .read_blocks()
-        .await
-        .get(&settings.block_id)
-        .expect(format!("Expecting block {} to exist", settings.block_id).as_str())
+    let wasm_vm_config = ctx.read_blocks().await[&settings.block_id]
         .config
-        .clone()
+        .as_ref()
         .unwrap()
-        .wasm_vm;
+        .wasm_vm
+        .clone();
 
     for solution_data in proof.solutions_data() {
         if let Ok(actual_solution_data) = ctx
