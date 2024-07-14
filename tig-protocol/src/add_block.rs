@@ -99,8 +99,9 @@ async fn create_block<T: Context>(ctx: &T) -> Block {
     }
     {
         let read_wasms = ctx.read_wasms().await;
+        let algorithm_ids = ctx.get_algorithm_ids(AlgorithmsFilter::Confirmed).await;
         let mut write_algorithms = ctx.write_algorithms().await;
-        for algorithm_id in ctx.get_algorithm_ids(AlgorithmsFilter::Confirmed).await {
+        for algorithm_id in algorithm_ids {
             let wasm = match read_wasms.get(&algorithm_id) {
                 Some(w) => w,
                 None => continue,
