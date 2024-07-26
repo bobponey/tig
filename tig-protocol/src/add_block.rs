@@ -6,7 +6,7 @@ use tig_structs::{config::*, core::*};
 use tig_utils::*;
 
 #[time]
-pub(crate) async fn execute<T: Context>(ctx: &mut T) -> String {
+pub(crate) async fn execute<T: Context>(ctx: &T) -> String {
     let block = create_block(ctx).await;
     confirm_mempool_algorithms(ctx, &block).await;
     confirm_mempool_benchmarks(ctx, &block).await;
@@ -28,7 +28,7 @@ pub(crate) async fn execute<T: Context>(ctx: &mut T) -> String {
 }
 
 #[time]
-async fn create_block<T: Context>(ctx: &mut T) -> Block {
+async fn create_block<T: Context>(ctx: &T) -> Block {
     let latest_block = ctx
         .get_block(BlockFilter::Latest, false)
         .await
@@ -49,6 +49,7 @@ async fn create_block<T: Context>(ctx: &mut T) -> Block {
         .height
         .saturating_sub(config.benchmark_submissions.lifespan_period);
     let mut data = BlockData {
+        mempool_challenge_ids: HashSet::<String>::new(),
         mempool_algorithm_ids: HashSet::<String>::new(),
         mempool_benchmark_ids: HashSet::<String>::new(),
         mempool_fraud_ids: HashSet::<String>::new(),
@@ -59,6 +60,14 @@ async fn create_block<T: Context>(ctx: &mut T) -> Block {
         active_benchmark_ids: HashSet::<String>::new(),
         active_player_ids: HashSet::<String>::new(),
     };
+    for challenge in ctx
+        .get_challenges(ChallengesFilter::Mempool, None)
+        .await
+        .unwrap_or_else(|e| panic!("get_challenges error: {:?}", e))
+        .iter()
+    {
+        data.mempool_challenge_ids.insert(challenge.id.clone());
+    }
     for algorithm in ctx
         .get_algorithms(AlgorithmsFilter::Mempool, None, false)
         .await
@@ -68,7 +77,7 @@ async fn create_block<T: Context>(ctx: &mut T) -> Block {
         data.mempool_algorithm_ids.insert(algorithm.id.clone());
     }
     for benchmark in ctx
-        .get_benchmarks(BenchmarksFilter::Mempool { from_block_started }, true)
+        .get_benchmarks(BenchmarksFilter::Mempool { from_block_started }, false)
         .await
         .unwrap_or_else(|e| panic!("get_benchmarks error: {:?}", e))
         .iter()
@@ -100,8 +109,20 @@ async fn create_block<T: Context>(ctx: &mut T) -> Block {
         data.mempool_wasm_ids.insert(wasm.algorithm_id.clone());
     }
 
-    data.active_challenge_ids
-        .extend(config.difficulty.parameters.keys().cloned());
+    for challenge in ctx
+        .get_challenges(ChallengesFilter::Confirmed, None)
+        .await
+        .unwrap_or_else(|e| panic!("get_challenges error: {:?}", e))
+    {
+        if challenge
+            .state
+            .unwrap()
+            .round_active
+            .is_some_and(|r| r <= details.round)
+        {
+            data.active_challenge_ids.insert(challenge.id.clone());
+        }
+    }
     let wasms: HashMap<String, Wasm> = ctx
         .get_wasms(WasmsFilter::Confirmed, false)
         .await
@@ -181,6 +202,15 @@ async fn create_block<T: Context>(ctx: &mut T) -> Block {
         .add_block(&details, &data, &config)
         .await
         .unwrap_or_else(|e| panic!("add_block error: {:?}", e));
+    for challenge_id in data.mempool_challenge_ids.iter() {
+        let state = ChallengeState {
+            block_confirmed: None,
+            round_active: None,
+        };
+        ctx.update_challenge_state(challenge_id, &state)
+            .await
+            .unwrap_or_else(|e| panic!("update_challenge_state error: {:?}", e));
+    }
     for algorithm_id in data.mempool_algorithm_ids.iter() {
         let state = AlgorithmState {
             block_confirmed: None,
@@ -272,7 +302,21 @@ async fn create_block<T: Context>(ctx: &mut T) -> Block {
 }
 
 #[time]
-async fn confirm_mempool_algorithms<T: Context>(ctx: &mut T, block: &Block) {
+async fn confirm_mempool_challenges<T: Context>(ctx: &T, block: &Block) {
+    for challenge_id in block.data().mempool_challenge_ids.iter() {
+        let challenge = get_challenge_by_id(ctx, challenge_id, None)
+            .await
+            .unwrap_or_else(|e| panic!("get_challenge_by_id error: {:?}", e));
+        let mut state = challenge.state().clone();
+        state.block_confirmed = Some(block.details.height);
+        ctx.update_challenge_state(challenge_id, &state)
+            .await
+            .unwrap_or_else(|e| panic!("update_challenge_state error: {:?}", e));
+    }
+}
+
+#[time]
+async fn confirm_mempool_algorithms<T: Context>(ctx: &T, block: &Block) {
     for algorithm_id in block.data().mempool_algorithm_ids.iter() {
         let algorithm = get_algorithm_by_id(ctx, algorithm_id, None)
             .await
@@ -287,7 +331,7 @@ async fn confirm_mempool_algorithms<T: Context>(ctx: &mut T, block: &Block) {
 }
 
 #[time]
-async fn confirm_mempool_benchmarks<T: Context>(ctx: &mut T, block: &Block) {
+async fn confirm_mempool_benchmarks<T: Context>(ctx: &T, block: &Block) {
     let config = block.config();
 
     for benchmark_id in block.data().mempool_benchmark_ids.iter() {
@@ -318,7 +362,7 @@ async fn confirm_mempool_benchmarks<T: Context>(ctx: &mut T, block: &Block) {
 }
 
 #[time]
-async fn confirm_mempool_proofs<T: Context>(ctx: &mut T, block: &Block) {
+async fn confirm_mempool_proofs<T: Context>(ctx: &T, block: &Block) {
     for benchmark_id in block.data().mempool_proof_ids.iter() {
         let benchmark = get_benchmark_by_id(ctx, &benchmark_id, false)
             .await
@@ -336,7 +380,7 @@ async fn confirm_mempool_proofs<T: Context>(ctx: &mut T, block: &Block) {
 }
 
 #[time]
-async fn confirm_mempool_frauds<T: Context>(ctx: &mut T, block: &Block) {
+async fn confirm_mempool_frauds<T: Context>(ctx: &T, block: &Block) {
     // Future Todo: slash player's rewards from past day
     for benchmark_id in block.data().mempool_fraud_ids.iter() {
         let fraud = get_fraud_by_id(ctx, &benchmark_id, false)
@@ -351,7 +395,7 @@ async fn confirm_mempool_frauds<T: Context>(ctx: &mut T, block: &Block) {
 }
 
 #[time]
-async fn confirm_mempool_wasms<T: Context>(ctx: &mut T, block: &Block) {
+async fn confirm_mempool_wasms<T: Context>(ctx: &T, block: &Block) {
     for algorithm_id in block.data().mempool_wasm_ids.iter() {
         let wasm = get_wasm_by_id(ctx, &algorithm_id, false)
             .await
@@ -365,7 +409,7 @@ async fn confirm_mempool_wasms<T: Context>(ctx: &mut T, block: &Block) {
 }
 
 #[time]
-async fn update_deposits<T: Context>(ctx: &mut T, block: &Block) {
+async fn update_deposits<T: Context>(ctx: &T, block: &Block) {
     let decay = match &block
         .config()
         .optimisable_proof_of_work
@@ -409,7 +453,7 @@ async fn update_deposits<T: Context>(ctx: &mut T, block: &Block) {
 }
 
 #[time]
-async fn update_cutoffs<T: Context>(ctx: &mut T, block: &Block) {
+async fn update_cutoffs<T: Context>(ctx: &T, block: &Block) {
     let config = block.config();
     let num_challenges = block.data().active_challenge_ids.len() as f64;
 
@@ -440,7 +484,7 @@ async fn update_cutoffs<T: Context>(ctx: &mut T, block: &Block) {
 }
 
 #[time]
-async fn update_solution_signature_thresholds<T: Context>(ctx: &mut T, block: &Block) {
+async fn update_solution_signature_thresholds<T: Context>(ctx: &T, block: &Block) {
     let config = block.config();
     let num_challenges = block.data().active_challenge_ids.len() as f64;
 
@@ -544,7 +588,7 @@ async fn update_solution_signature_thresholds<T: Context>(ctx: &mut T, block: &B
 }
 
 #[time]
-async fn update_qualifiers<T: Context>(ctx: &mut T, block: &Block) {
+async fn update_qualifiers<T: Context>(ctx: &T, block: &Block) {
     let config = block.config();
     let BlockData {
         active_benchmark_ids,
@@ -697,7 +741,7 @@ async fn update_qualifiers<T: Context>(ctx: &mut T, block: &Block) {
 }
 
 #[time]
-async fn update_frontiers<T: Context>(ctx: &mut T, block: &Block) {
+async fn update_frontiers<T: Context>(ctx: &T, block: &Block) {
     let config = block.config();
 
     for challenge_id in block.data().active_challenge_ids.iter() {
@@ -759,7 +803,7 @@ async fn update_frontiers<T: Context>(ctx: &mut T, block: &Block) {
 }
 
 #[time]
-async fn update_influence<T: Context>(ctx: &mut T, block: &Block) {
+async fn update_influence<T: Context>(ctx: &T, block: &Block) {
     let config = block.config();
     let BlockData {
         active_challenge_ids,
@@ -867,7 +911,7 @@ async fn update_influence<T: Context>(ctx: &mut T, block: &Block) {
 }
 
 #[time]
-async fn update_adoption<T: Context>(ctx: &mut T, block: &Block) {
+async fn update_adoption<T: Context>(ctx: &T, block: &Block) {
     let BlockData {
         active_algorithm_ids,
         active_challenge_ids,
@@ -911,13 +955,21 @@ async fn update_adoption<T: Context>(ctx: &mut T, block: &Block) {
             let mut weight = PreciseNumber::from(0);
             for (player_id, &num_qualifiers) in data.num_qualifiers_by_player().iter() {
                 let num_qualifiers = PreciseNumber::from(num_qualifiers);
-                let influence = *get_player_by_id(ctx, player_id, Some(&block.id))
+                let player_data = get_player_by_id(ctx, player_id, Some(&block.id))
                     .await
                     .unwrap_or_else(|e| panic!("get_player_by_id error: {:?}", e))
-                    .block_data()
-                    .influence();
+                    .block_data
+                    .unwrap();
+                let influence = player_data.influence.unwrap();
+                let player_num_qualifiers = PreciseNumber::from(
+                    player_data
+                        .num_qualifiers_by_challenge
+                        .unwrap()
+                        .remove(challenge_id)
+                        .unwrap(),
+                );
 
-                weight = weight + influence * num_qualifiers;
+                weight = weight + influence * num_qualifiers / player_num_qualifiers;
             }
             weights.push(weight);
         }
@@ -933,7 +985,7 @@ async fn update_adoption<T: Context>(ctx: &mut T, block: &Block) {
 }
 
 #[time]
-async fn update_innovator_rewards<T: Context>(ctx: &mut T, block: &Block) {
+async fn update_innovator_rewards<T: Context>(ctx: &T, block: &Block) {
     let config = block.config();
 
     let adoption_threshold =
@@ -989,7 +1041,7 @@ async fn update_innovator_rewards<T: Context>(ctx: &mut T, block: &Block) {
 }
 
 #[time]
-async fn update_benchmarker_rewards<T: Context>(ctx: &mut T, block: &Block) {
+async fn update_benchmarker_rewards<T: Context>(ctx: &T, block: &Block) {
     let config = block.config();
 
     let reward_pool = PreciseNumber::from_f64(get_block_reward(block))
@@ -1012,7 +1064,7 @@ async fn update_benchmarker_rewards<T: Context>(ctx: &mut T, block: &Block) {
 }
 
 #[time]
-async fn update_merge_points<T: Context>(ctx: &mut T, block: &Block) {
+async fn update_merge_points<T: Context>(ctx: &T, block: &Block) {
     let config = block.config();
 
     let adoption_threshold =
@@ -1050,7 +1102,7 @@ async fn update_merge_points<T: Context>(ctx: &mut T, block: &Block) {
 }
 
 #[time]
-async fn update_merges<T: Context>(ctx: &mut T, block: &Block) {
+async fn update_merges<T: Context>(ctx: &T, block: &Block) {
     let config = block.config();
 
     // last block of the round
@@ -1112,7 +1164,7 @@ fn get_block_reward(block: &Block) -> f64 {
 }
 
 async fn get_player_by_id<T: Context>(
-    ctx: &mut T,
+    ctx: &T,
     player_id: &String,
     block_id: Option<&String>,
 ) -> anyhow::Result<Player> {
@@ -1131,7 +1183,7 @@ async fn get_player_by_id<T: Context>(
 }
 
 async fn get_proof_by_benchmark_id<T: Context>(
-    ctx: &mut T,
+    ctx: &T,
     benchmark_id: &String,
     include_data: bool,
 ) -> anyhow::Result<Proof, String> {
@@ -1148,7 +1200,7 @@ async fn get_proof_by_benchmark_id<T: Context>(
 }
 
 async fn get_benchmark_by_id<T: Context>(
-    ctx: &mut T,
+    ctx: &T,
     benchmark_id: &String,
     include_data: bool,
 ) -> anyhow::Result<Benchmark> {
@@ -1161,7 +1213,7 @@ async fn get_benchmark_by_id<T: Context>(
 }
 
 async fn get_fraud_by_id<T: Context>(
-    ctx: &mut T,
+    ctx: &T,
     benchmark_id: &String,
     include_data: bool,
 ) -> anyhow::Result<Fraud> {
@@ -1177,7 +1229,7 @@ async fn get_fraud_by_id<T: Context>(
 }
 
 async fn get_wasm_by_id<T: Context>(
-    ctx: &mut T,
+    ctx: &T,
     algorithm_id: &String,
     include_data: bool,
 ) -> anyhow::Result<Wasm> {
@@ -1190,7 +1242,7 @@ async fn get_wasm_by_id<T: Context>(
 }
 
 async fn get_algorithm_by_id<T: Context>(
-    ctx: &mut T,
+    ctx: &T,
     algorithm_id: &String,
     block_id: Option<&String>,
 ) -> anyhow::Result<Algorithm> {
@@ -1210,7 +1262,7 @@ async fn get_algorithm_by_id<T: Context>(
 }
 
 async fn get_challenge_by_id<T: Context>(
-    ctx: &mut T,
+    ctx: &T,
     challenge_id: &String,
     block_id: Option<&String>,
 ) -> anyhow::Result<Challenge> {
