@@ -86,25 +86,23 @@ mod cpu_tests {
 
     #[test]
     fn test_example() {
-        fn test_cpu_example() {
-            thread::scope(|s| {
-                for worker in 0..4 {
-                    s.spawn(move || {
-                        for nonce in 0..10 {
-                            let seed = nonce + worker * 100;
-                            println!("CPU Worker {}: starting nonce {}", worker, nonce);
-                            let start = std::time::Instant::now();
-                            let challenge = Challenge::new(1000, seed);
-                            example::solve_challenge(&challenge).expect("Error solving challenge");
-                            println!(
-                                "CPU Worker {}: took {:?}ms",
-                                worker,
-                                start.elapsed().as_millis()
-                            );
-                        }
-                    });
-                }
-            });
-        }
+        thread::scope(|s| {
+            for worker in 0..4 {
+                s.spawn(move || {
+                    for nonce in 0..10 {
+                        let seed = nonce + worker * 100;
+                        println!("CPU Worker {}: starting nonce {}", worker, nonce);
+                        let start = std::time::Instant::now();
+                        let challenge = Challenge::new(1000, seed);
+                        example::solve_challenge(&challenge).expect("Error solving challenge");
+                        println!(
+                            "CPU Worker {}: took {:?}ms",
+                            worker,
+                            start.elapsed().as_millis()
+                        );
+                    }
+                });
+            }
+        });
     }
 }
