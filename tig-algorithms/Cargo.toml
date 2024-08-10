@@ -19,4 +19,4 @@ tig-challenges = { path = "../tig-challenges" }
 crate-type = ["cdylib", "rlib"]
 
 [features]
-cudarc = ["cudarc"]
+gpu_cudarc = ["cudarc"]

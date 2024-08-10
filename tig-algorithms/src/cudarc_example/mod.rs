@@ -24,7 +24,7 @@ pub struct Solution {
     pub matrix_c: Vec<f32>, // flattened N x N matrix
 }
 
-#[cfg(feature = "cudarc")]
+#[cfg(feature = "gpu_cudarc")]
 mod gpu_tests {
     use super::*;
     use cudarc::driver::*;
@@ -79,7 +79,7 @@ mod gpu_tests {
     }
 }
 
-#[cfg(not(feature = "cudarc"))]
+#[cfg(not(feature = "gpu_cudarc"))]
 mod cpu_tests {
     use super::*;
     use std::thread;

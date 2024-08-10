@@ -18,7 +18,7 @@ pub fn solve_challenge(challenge: &Challenge) -> anyhow::Result<Option<Solution>
     Ok(Some(solution))
 }
 
-#[cfg(feature = "cudarc")]
+#[cfg(feature = "gpu_cudarc")]
 mod cudarc_stuff {
     use super::*;
     use crate::Kernel;
@@ -81,5 +81,5 @@ mod cudarc_stuff {
         Ok(Some(solution))
     }
 }
-#[cfg(feature = "cudarc")]
+#[cfg(feature = "gpu_cudarc")]
 pub use cudarc_stuff::{cuda_solve_challenge, KERNEL};
