@@ -6092,7 +6092,8 @@ browser = [
 
 # c004_a018 = []
 
-# c004_a019 = []
+c004_a019 = []
+vector_search_bacalhau_gpu = ["c004_a019"]
 
 # c004_a020 = []
 
