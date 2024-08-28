@@ -4110,7 +4110,8 @@ browser = [
 
 # c003_a026 = []
 
-# c003_a027 = []
+c003_a027 = []
+knapsack_quantum_knapsack = ["c003_a027"]
 
 # c003_a028 = []
 

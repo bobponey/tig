@@ -6284,8 +6284,8 @@ pub async fn execute(
                                     // #[cfg(feature = "c003_a026")]
                                     // "c003_a026" => Some((c003::c003_a026::cuda_solve_challenge as CudaSolveChallengeFn, &c003::c003_a026::KERNEL)),
 
-                                    // #[cfg(feature = "c003_a027")]
-                                    // "c003_a027" => Some((c003::c003_a027::cuda_solve_challenge as CudaSolveChallengeFn, &c003::c003_a027::KERNEL)),
+                                    #[cfg(feature = "c003_a027")]
+                                    "c003_a027" => Some((c003::c003_a027::cuda_solve_challenge as CudaSolveChallengeFn, &c003::c003_a027::KERNEL)),
 
                                     // #[cfg(feature = "c003_a028")]
                                     // "c003_a028" => Some((c003::c003_a028::cuda_solve_challenge as CudaSolveChallengeFn, &c003::c003_a028::KERNEL)),
