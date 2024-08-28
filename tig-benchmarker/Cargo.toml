@@ -110,7 +110,8 @@ browser = [
 
 # c001_a024 = []
 
-# c001_a025 = []
+c001_a025 = []
+satisfiability_heuristics_gsat = ["c001_a025"]
 
 # c001_a026 = []
 
