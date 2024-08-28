@@ -4090,7 +4090,8 @@ browser = [
 
 # c003_a016 = []
 
-# c003_a017 = []
+c003_a017 = []
+knapsack_optimised_knapmax = ["c003_a017"]
 
 # c003_a018 = []
 
