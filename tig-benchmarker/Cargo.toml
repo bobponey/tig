@@ -2102,7 +2102,8 @@ browser = [
 
 # c002_a021 = []
 
-# c002_a022 = []
+c002_a022 = []
+vehicle_routing_clarke_wright_opt = ["c002_a022"]
 
 # c002_a023 = []
 

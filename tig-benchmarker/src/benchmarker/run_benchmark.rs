@@ -3126,8 +3126,8 @@ pub async fn execute(
                                     // #[cfg(feature = "c002_a021")]
                                     // "c002_a021" => Some(c002::c002_a021::solve_challenge as SolveChallengeFn),
 
-                                    // #[cfg(feature = "c002_a022")]
-                                    // "c002_a022" => Some(c002::c002_a022::solve_challenge as SolveChallengeFn),
+                                    #[cfg(feature = "c002_a022")]
+                                    "c002_a022" => Some(c002::c002_a022::solve_challenge as SolveChallengeFn),
 
                                     // #[cfg(feature = "c002_a023")]
                                     // "c002_a023" => Some(c002::c002_a023::solve_challenge as SolveChallengeFn),
