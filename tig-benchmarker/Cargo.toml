@@ -76,7 +76,8 @@ browser = [
 
 # c001_a007 = []
 
-# c001_a008 = []
+c001_a008 = []
+satisfiability_i_cant_get_no = ["c001_a008"]
 
 # c001_a009 = []
 
