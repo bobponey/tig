@@ -6090,7 +6090,8 @@ browser = [
 
 # c004_a017 = []
 
-# c004_a018 = []
+c004_a018 = []
+vector_search_fasterer_search = ["c004_a018"]
 
 # c004_a019 = []
 
