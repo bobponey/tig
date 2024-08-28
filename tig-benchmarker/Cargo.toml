@@ -6098,7 +6098,8 @@ browser = [
 
 # c004_a021 = []
 
-# c004_a022 = []
+c004_a022 = []
+vector_search_cudabefaster = ["c004_a022"]
 
 # c004_a023 = []
 
