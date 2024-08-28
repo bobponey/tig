@@ -6112,7 +6112,8 @@ browser = [
 
 # c004_a028 = []
 
-# c004_a029 = []
+c004_a029 = []
+vector_search_optimax_search = ["c004_a029"]
 
 # c004_a030 = []
 
