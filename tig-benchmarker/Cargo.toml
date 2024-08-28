@@ -90,7 +90,8 @@ browser = [
 
 # c001_a014 = []
 
-# c001_a015 = []
+c001_a015 = []
+satisfiability_filter_sat = ["c001_a015"]
 
 # c001_a016 = []
 
