@@ -6094,7 +6094,8 @@ browser = [
 
 # c004_a019 = []
 
-# c004_a020 = []
+c004_a020 = []
+vector_search_manual_fast_search = ["c004_a020"]
 
 # c004_a021 = []
 
