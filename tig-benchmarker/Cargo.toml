@@ -4076,7 +4076,8 @@ browser = [
 
 # c003_a009 = []
 
-# c003_a010 = []
+c003_a010 = []
+knapsack_knapsplorify = ["c003_a010"]
 
 # c003_a011 = []
 
