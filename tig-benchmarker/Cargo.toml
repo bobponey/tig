@@ -108,7 +108,8 @@ browser = [
 
 # c001_a023 = []
 
-# c001_a024 = []
+c001_a024 = []
+satisfiability_mt_sat = ["c001_a024"]
 
 # c001_a025 = []
 
