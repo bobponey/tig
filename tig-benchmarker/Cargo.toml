@@ -2110,7 +2110,8 @@ browser = [
 
 # c002_a025 = []
 
-# c002_a026 = []
+c002_a026 = []
+vehicle_routing_enhanced_annealing = ["c002_a026"]
 
 # c002_a027 = []
 
