@@ -4062,7 +4062,8 @@ browser = [
 
 # c003_a002 = []
 
-# c003_a003 = []
+c003_a003 = []
+knapsack_branch_and_bound = ["c003_a003"]
 
 # c003_a004 = []
 
