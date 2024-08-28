@@ -6104,7 +6104,8 @@ browser = [
 
 # c004_a024 = []
 
-# c004_a025 = []
+c004_a025 = []
+vector_search_cudamatata = ["c004_a025"]
 
 # c004_a026 = []
 
