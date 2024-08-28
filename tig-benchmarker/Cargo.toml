@@ -6056,7 +6056,8 @@ browser = [
 
 # c003_a999 = []
 
-# c004_a001 = []
+c004_a001 = []
+vector_search_optimal_ann = ["c004_a001"]
 
 # c004_a002 = []
 
