@@ -64,7 +64,8 @@ browser = [
 
 # c001_a001 = []
 
-# c001_a002 = []
+c001_a002 = []
+satisfiability_cuda_example = ["c001_a002"]
 
 # c001_a003 = []
 
