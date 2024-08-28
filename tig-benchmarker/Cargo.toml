@@ -2114,7 +2114,8 @@ browser = [
 
 # c002_a027 = []
 
-# c002_a028 = []
+c002_a028 = []
+vehicle_routing_adaptive_cluster = ["c002_a028"]
 
 # c002_a029 = []
 
