@@ -3063,8 +3063,8 @@ pub async fn execute(
                                     )
                                         -> anyhow::Result<Option<tig_challenges::c002::Solution>>;
                                 match match job.settings.algorithm_id.as_str() {
-                                    // #[cfg(feature = "c002_a001")]
-                                    // "c002_a001" => Some(c002::c002_a001::solve_challenge as SolveChallengeFn),
+                                    #[cfg(feature = "c002_a001")]
+                                    "c002_a001" => Some(c002::c002_a001::solve_challenge as SolveChallengeFn),
 
                                     // #[cfg(feature = "c002_a002")]
                                     // "c002_a002" => Some(c002::c002_a002::solve_challenge as SolveChallengeFn),
@@ -6085,8 +6085,8 @@ pub async fn execute(
                                     )
                                         -> anyhow::Result<Option<tig_challenges::c003::Solution>>;
                                 match match job.settings.algorithm_id.as_str() {
-                                    // #[cfg(feature = "c003_a001")]
-                                    // "c003_a001" => Some(c003::c003_a001::solve_challenge as SolveChallengeFn),
+                                    #[cfg(feature = "c003_a001")]
+                                    "c003_a001" => Some(c003::c003_a001::solve_challenge as SolveChallengeFn),
 
                                     // #[cfg(feature = "c003_a002")]
                                     // "c003_a002" => Some(c003::c003_a002::solve_challenge as SolveChallengeFn),
@@ -9107,8 +9107,8 @@ pub async fn execute(
                                     )
                                         -> anyhow::Result<Option<tig_challenges::c004::Solution>>;
                                 match match job.settings.algorithm_id.as_str() {
-                                    // #[cfg(feature = "c004_a001")]
-                                    // "c004_a001" => Some(c004::c004_a001::solve_challenge as SolveChallengeFn),
+                                    #[cfg(feature = "c004_a001")]
+                                    "c004_a001" => Some(c004::c004_a001::solve_challenge as SolveChallengeFn),
 
                                     // #[cfg(feature = "c004_a002")]
                                     // "c004_a002" => Some(c004::c004_a002::solve_challenge as SolveChallengeFn),

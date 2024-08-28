@@ -2061,7 +2061,8 @@ satisfiability_schnoing = ["c001_a001"]
 
 # c001_a999 = []
 
-# c002_a001 = []
+c002_a001 = []
+vehicle_routing_clarke_wright = ["c002_a001"]
 
 # c002_a002 = []
 
@@ -4059,7 +4060,8 @@ satisfiability_schnoing = ["c001_a001"]
 
 # c002_a999 = []
 
-# c003_a001 = []
+c003_a001 = []
+knapsack_dynamic = ["c003_a001"]
 
 # c003_a002 = []
 
@@ -6057,7 +6059,8 @@ satisfiability_schnoing = ["c001_a001"]
 
 # c003_a999 = []
 
-# c004_a001 = []
+c004_a001 = []
+vector_search_basic = ["c004_a001"]
 
 # c004_a002 = []
 
