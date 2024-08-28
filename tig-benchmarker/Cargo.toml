@@ -6110,7 +6110,8 @@ browser = [
 
 # c004_a027 = []
 
-# c004_a028 = []
+c004_a028 = []
+vector_search_gpu_manual_fastest = ["c004_a028"]
 
 # c004_a029 = []
 
